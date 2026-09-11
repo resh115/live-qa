@@ -2,8 +2,10 @@ import Groq from "groq-sdk";
 
 export async function POST(req: Request) {
   try {
+    // Get message from request
     const { message } = await req.json();
 
+    // Check message
     if (!message) {
       return Response.json(
         { error: "Message is required" },
@@ -11,6 +13,7 @@ export async function POST(req: Request) {
       );
     }
 
+    // Check API key
     if (!process.env.GROQ_API_KEY) {
       return Response.json(
         { error: "Missing GROQ_API_KEY" },
@@ -18,12 +21,15 @@ export async function POST(req: Request) {
       );
     }
 
+    // Create Groq client
     const groq = new Groq({
       apiKey: process.env.GROQ_API_KEY,
     });
 
+    // Send request to Groq
     const completion = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+      model: "openai/gpt-oss-20b",
+
       messages: [
         {
           role: "system",
@@ -35,22 +41,31 @@ export async function POST(req: Request) {
           content: message,
         },
       ],
+
       temperature: 0.7,
+
+      // Prevent unnecessary long responses
+      max_completion_tokens: 150,
+
+      // Do not return reasoning content
+      include_reasoning: false,
     });
 
+    // Get AI response
     const answer =
       completion.choices?.[0]?.message?.content || "No response";
 
+    // Return response
     return Response.json({
-      answer,
+      answer: answer.trim(),
     });
 
   } catch (err: any) {
-    console.log("🔥 GROQ ERROR:", err);
+    console.error("🔥 GROQ ERROR:", err);
 
     return Response.json(
       {
-        error: err.message || "Internal Server Error",
+        error: err?.message || "Internal Server Error",
       },
       { status: 500 }
     );
